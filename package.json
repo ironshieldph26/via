@@ -1,6 +1,6 @@
 {
   "name": "@ironshieldph/via",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Express middleware for flexible request/response logging with colorized output, structured JSON, custom tokens, streams, and skip rules.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
